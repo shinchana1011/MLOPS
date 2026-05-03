@@ -64,6 +64,8 @@ import pandas as pd
 import mlflow
 import mlflow.sklearn
 
+mlflow.set_tracking_uri("file:./mlruns")
+
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -128,7 +130,7 @@ def main():
         # Save MLflow model artifact (structured)
         mlflow.sklearn.log_model(
             result["model"],
-            artifact_path="model"
+            name="model"
         )
 
         print(f"Test samples: {result['test_size']}")
