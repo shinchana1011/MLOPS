@@ -1,26 +1,87 @@
-name: QuickFoods CI/CD
+name: QuickFoods Advanced CI/CD
 
 on:
   push:
     branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: quickfoods-delivery-model
 
 jobs:
-  test:
+  mlops-ci:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run training
+      - name: Train model with MLflow
         run: |
           python src/train.py
+
+      - name: Run multi-metric comparison
+        run: |
+          python src/train_multi_metrics_with_mlflow.py
+
+      - name: Run hyperparameter tuning
+        run: |
+          python src/train_hyperparameter_tuning.py
+
+      - name: Register best model
+        run: |
+          python src/register_best_model.py
+
+      - name: Upload MLflow runs as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-runs
+          path: mlruns/
+
+      - name: Upload trained models
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-models
+          path: models/
+
+  docker-ci:
+    needs: mlops-ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download trained models
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-models
+          path: models/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:ci
+
+      - name: Test Docker prediction
+        run: |
+          docker run --rm $IMAGE_NAME:ci --distance_km 5 --items_count 3 --is_peak_hour 1 --traffic_level 2

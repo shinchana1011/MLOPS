@@ -1,6 +1,13 @@
 venv/
 __pycache__/
 *.pyc
-.env
-mlruns/
+
 logs/
+mlruns/
+mlflow.db
+
+models/*
+!models/delivery_time_model.pkl
+!models/RandomForest.pkl
+!models/GradientBoosting.pkl
+!models/LinearRegression.pkl
